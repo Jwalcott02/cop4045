@@ -1,0 +1,91 @@
+1. """Simple line numbering and function parsing utilities."""
+2. 
+3. import ast
+4. import os
+5. import tokenize
+6. import io
+7. 
+8. 
+9. def line_number(input_filename: str, output_filename: str) -> None:
+10.     """Read a text file and write a new file with line numbers added. """
+11.     try:
+12.         with open(input_filename, "r") as infile:
+13.             lines = infile.readlines()
+14. 
+15.         with open(output_filename, "w") as outfile:
+16.             for i, line in enumerate(lines, start=1):
+17.                 outfile.write(f"{i}. {line}")
+18. 
+19.     except Exception as error:
+20.         print(f"Error while numbering lines: {error}")
+21.         raise
+22. 
+23. 
+24. def _remove_comments_and_blanks(code: str) -> str:
+25.     """Remove comments and blank lines from a string of Python code."""
+26.     lines = code.splitlines()
+27.     comment_cols = {}
+28.     for tok in tokenize.generate_tokens(io.StringIO(code).readline):
+29.         if tok.type == tokenize.COMMENT:
+30.             comment_cols[tok.start[0]] = tok.start[1]
+31. 
+32.     result = []
+33.     for i, line in enumerate(lines, start=1):
+34.         if i in comment_cols:
+35.             line = line[: comment_cols[i]]
+36.         if line.strip() != "":
+37.             result.append(line)
+38. 
+39.     return "\n".join(result) + "\n"
+40. 
+41. 
+42. def parse_functions(filename: str) -> tuple:
+43.     """Parse a Python file and return a tuple of functions found in the file."""
+44.     try:
+45.         with open(filename, "r") as f:
+46.             source = f.read()
+47. 
+48.         lines = source.splitlines()
+49.         tree = ast.parse(source)
+50. 
+51.         functions = []
+52.         for node in tree.body:
+53.             if isinstance(node, ast.FunctionDef):
+54.                 name = node.name
+55.                 args = ", ".join(arg.arg for arg in node.args.args)
+56. 
+57.                 # grab the raw code lines for this function
+58.                 raw_lines = lines[node.lineno - 1 : node.end_lineno]
+59.                 raw_code = "\n".join(raw_lines) + "\n"
+60. 
+61.                 code = _remove_comments_and_blanks(raw_code)
+62.                 functions.append((node.lineno, name, args, code))
+63. 
+64.         functions.sort(key=lambda item: item[1])
+65.         return tuple(functions)
+66. 
+67.     except Exception as error:
+68.         print(f"Error while parsing functions: {error}")
+69.         raise
+70. 
+71. 
+72. def main() -> None:
+73.     """Demo line_number and parse_functions on this file itself."""
+74.     print("FAU ID: Z23692334")
+75. 
+76.     this_file = os.path.abspath(__file__)
+77.     output_file = this_file + ".numbered.txt"
+78. 
+79.     line_number(this_file, output_file)
+80.     print(f"Wrote numbered file to {output_file}")
+81. 
+82.     functions = parse_functions(this_file)
+83.     print("\nFunctions found:")
+84.     for line_no, name, args, code in functions:
+85.         print("-" * 50)
+86.         print(f"line: {line_no}  name: {name}  args: {args}")
+87.         print(code)
+88. 
+89. 
+90. if __name__ == "__main__":
+91.     main()
